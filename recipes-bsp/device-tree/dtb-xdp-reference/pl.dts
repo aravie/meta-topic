@@ -84,7 +84,6 @@
 				interrupts = <92 IRQ_TYPE_EDGE_RISING>; /* INT0 at EMIO 14, INT1 is at 15 */
 			};
 
-
 			/* Accelero sensor */
 			bmi088_accel: bmi088_accel@1 {
 				compatible = "bmi088_accel";
@@ -124,6 +123,14 @@
 	fragment@5 {
 		target = <&amba>;
 		__overlay__ {
+
+			/* Faster video clock */
+			misc_clk_6: misc_clk_6 {
+				#clock-cells = <0>;
+				clock-frequency = <333027650>;
+				compatible = "fixed-clock";
+			};
+
 			/* FAN controller */
 			pl_fan_controller: fan-controller@a0012000 {
 				compatible = "topic,axi-pwm-fan-controller";
@@ -131,15 +138,6 @@
 				nr-fans = <1>;
 				clocks = <&zynqmp_clk PL0_REF>;
 				topic,initial-pwm = <0x80>; /* Run at 50% */
-			};
-
-			/* MOTOR controller */
-			pl_motor_controller: motor-controller@a0013000 {
-				compatible = "topic,axi-pwm-motor-controller";
-				reg = <0x0 0xa0013000 0x0 0x1000>;
-				nr-motors = <4>;
-				clocks = <&zynqmp_clk PL0_REF>;
-				topic,initial-pwm = <0x0>; /* Off */
 			};
 
 			/* UART 16550 controller for BT */
@@ -159,65 +157,219 @@
 				xlnx,use-user-ports = <0x1>;
 			};
 
-			/* HDMI output */
 
-			/* UART 16550 controller for uBlaze_hdmi */
-			axi_uart16550_ublaze_hdmi: serial@a0040000 {
-				clock-names = "ref_clk";
+			mipi_cam_0_axi_iic: i2c@a000b000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clock-names = "s_axi_aclk";
 				clocks = <&zynqmp_clk PL0_REF>;
-				compatible = "xlnx,xps-uart16550-2.00.a", "ns16550a";
-				current-speed = <115200>;
-				device_type = "serial";
+				compatible = "xlnx,axi-iic-2.0", "xlnx,xps-iic-2.00.a";
+				interrupt-names = "iic2intc_irpt";
 				interrupt-parent = <&gic>;
-				interrupts = <0 109 4>; /* pl_ps_1[5] */
-				reg = <0x0 0xA0040000 0x0 0x2000>;
-				reg-offset = <0x1000>;
-				reg-shift = <2>;
+				interrupts = <0 92 4>; 
+				reg = <0x0 0xa000b000 0x0 0x1000>;
+
+				mipi_cam_0_imx274: sensor@1a{
+					compatible = "sony,imx274";
+					reg = <0x1a>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reset-gpios = <&gpio 78 GPIO_ACTIVE_HIGH>;
+
+					port@0 {
+						reg = <0>;
+
+						mipi_cam_0_imx274_out: endpoint {
+							remote-endpoint = <&mipi_cam_0_csiss_in>;
+							clock-lanes = <0>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+				}; 
 			};
 
-			/* UART 16550 controller for uBlaze_mipi0 */
-			axi_uart16550_ublaze_mipi0: serial@a0042000 {
-				clock-names = "ref_clk";
-				clocks = <&zynqmp_clk PL0_REF>;
-				compatible = "xlnx,xps-uart16550-2.00.a", "ns16550a";
-				current-speed = <115200>;
-				device_type = "serial";
+			mipi_cam_0_csiss: csiss@a00c0000 {
+				clock-names = "lite_aclk", "dphy_clk_200M", "video_aclk";
+				clocks = <&zynqmp_clk PL0_REF>, <&si5341 0 6>, <&misc_clk_6>; 
+				 
+				compatible = "xlnx,mipi-csi2-rx-subsystem-4.1", "xlnx,mipi-csi2-rx-subsystem-4.0";
+				interrupt-names = "csirxss_csi_irq";
 				interrupt-parent = <&gic>;
-				interrupts = <0 91 4>; /* pl_ps_0[2] */
-				reg = <0x0 0xA0042000 0x0 0x2000>;
-				reg-offset = <0x1000>;
-				reg-shift = <2>;
+				interrupts = <0 91 4>;
+				reg = <0x0 0xa00c0000 0x0 0x40000>;
+				xlnx,axis-tdata-width = <32>;
+				xlnx,cal-mode = "NONE";
+				xlnx,clk-io-swap = "false";
+				xlnx,clk-lane-io-position = <0x1a>;
+				xlnx,clk-lp-io-swap = "false";
+				xlnx,csi-en-activelanes = "true";
+				xlnx,csi-en-crc = "true";
+				xlnx,csi-filter-userdatatype = "true";
+				xlnx,csi-opt1-regs = "false";
+				xlnx,csi-pxl-format = "RAW10";
+				xlnx,csi2rx-dbg = <0x0>;
+				xlnx,data-lane0-io-position = <0x2>;
+				xlnx,data-lane1-io-position = <0x4>;
+				xlnx,data-lane2-io-position = <0x6>;
+				xlnx,data-lane3-io-position = <0x8>;
+				xlnx,dl0-io-swap = "false";
+				xlnx,dl0-lp-io-swap = "false";
+				xlnx,dl1-io-swap = "false";
+				xlnx,dl1-lp-io-swap = "false";
+				xlnx,dl2-io-swap = "false";
+				xlnx,dl2-lp-io-swap = "false";
+				xlnx,dl3-io-swap = "false";
+				xlnx,dl3-lp-io-swap = "false";
+				xlnx,dphy-lanes = <0x4>;
+				xlnx,dphy-mode = "SLAVE";
+				xlnx,dphy-present ;
+				xlnx,en-active-lanes ;
+				xlnx,en-bg0-pin0 = "false";
+				xlnx,en-bg0-pin6 = "false";
+				xlnx,en-bg1-pin0 = "false";
+				xlnx,en-bg1-pin6 = "false";
+				xlnx,en-bg2-pin0 = "false";
+				xlnx,en-bg2-pin6 = "false";
+				xlnx,en-bg3-pin0 = "false";
+				xlnx,en-bg3-pin6 = "false";
+				xlnx,en-clk300m = "false";
+				xlnx,en-csi-v2-0 = "false";
+				xlnx,en-exdesigns = "false";
+				xlnx,en-timeout-regs = "false";
+				xlnx,en-vcx = "false";
+				xlnx,esc-timeout = <0x6400>;
+				xlnx,fifo-rd-en-control = "true";
+				xlnx,hs-line-rate = <0x5a0>;
+				xlnx,hs-settle-ns = <0x8d>;
+				xlnx,hs-timeout = <0x10005>;
+				xlnx,idly-group-name = "mipi_csi2rx_idly_group";
+				xlnx,idly-tap = <0x1>;
+				xlnx,init = <0x186a0>;
+				xlnx,is-7series = "false";
+				xlnx,max-lanes = <0x4>;
+				xlnx,mipi-slv-int = <0x0>;
+				xlnx,ppc = <0x2>;
+				xlnx,share-idlyctrl = "false";
+				xlnx,vc = <0x4>;
+				xlnx,vfb ;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					
+					port@0 {
+						reg = <0>;
+						xlnx,cfa-pattern = "rggb";
+						xlnx,video-format = <XVIP_VF_MONO_SENSOR>;
+						xlnx,video-width = <8>;
+
+						mipi_cam_0_csiss_out: endpoint {
+							remote-endpoint = <&mipi_cam_0_demosaic_in>;
+						};
+					};
+					port@1 {
+						reg = <1>;
+						xlnx,cfa-pattern = "rggb";
+						xlnx,video-format = <XVIP_VF_MONO_SENSOR>;
+						xlnx,video-width = <8>;
+
+						mipi_cam_0_csiss_in: endpoint {
+							remote-endpoint = <&mipi_cam_0_imx274_out>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+				}; 
 			};
 
-			/* VCU */
-			vcu_0: vcu@a0240000 {
-				#address-cells = <2>;
-				#clock-cells = <1>;
-				#size-cells = <2>;
-				clock-names = "pll_ref", "aclk", "vcu_core_enc", "vcu_core_dec", "vcu_mcu_enc", "vcu_mcu_dec";
-				clocks = <&misc_clk_5>, <&zynqmp_clk PL0_REF>, <&vcu_0 1>, <&vcu_0 2>, <&vcu_0 3>, <&vcu_0 4>;
-				compatible = "xlnx,vcu-1.2", "xlnx,vcu";
-				interrupt-names = "vcu_host_interrupt";
+			mipi_cam_0_demosaic: demosaic@a0050000 {
+				compatible = "xlnx,v-demosaic-1.0", "xlnx,v-demosaic";
+				reg = <0x0 0xa0050000 0x0 0x10000>;
+				clock-names = "ap_clk";
+				clocks = <&misc_clk_6>;
+				interrupt-names = "interrupt";
 				interrupt-parent = <&gic>;
-				interrupts = <0 105 4>;
-				ranges ;
-				reg = <0x0 0xa0240000 0x0 0x1000>, <0x0 0xa0241000 0x0 0x1000>;
-				reg-names = "vcu_slcr", "logicore";
-				reset-gpios = <&gpio 106 GPIO_ACTIVE_HIGH>; /* EMIO 28, actually active low but VCU driver inverts it */
-				encoder: al5e@a0200000 {
-					compatible = "al,al5e-1.2", "al,al5e";
-					interrupt-parent = <&gic>;
-					interrupts = <0 105 4>;
-					reg = <0x0 0xa0200000 0x0 0x10000>;
+				interrupts = <0 107 4>;
+				reset-gpios = <&gpio 104 GPIO_ACTIVE_LOW>; 
+				xlnx,max-height = <2160>;
+				xlnx,max-width = <3840>;
+				xlnx,s-axi-ctrl-addr-width = <6>;
+				xlnx,s-axi-ctrl-data-width = <32>;
+
+				assigned-clocks        = <&si5341 1 0>, <&si5341 0 6>;
+				assigned-clock-parents = <0>,           <&si5341 1 0>;
+				assigned-clock-rates   = <400000000>,   <200000000>;
+
+				demosaic_ports: ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						
+						xlnx,cfa-pattern = "rggb";
+						xlnx,video-width = <8>;
+
+						mipi_cam_0_demosaic_in: endpoint {
+							remote-endpoint = <&mipi_cam_0_csiss_out>;
+						};
+					};
+
+					
+					port@1 {
+						reg = <1>;
+						xlnx,cfa-pattern = "rggb";
+						xlnx,video-width = <8>;
+
+						mipi_cam_0_demosaic_out: endpoint {
+							remote-endpoint = <&mipi_cam_0_vcap_in>;
+						};
+					};
 				};
-				decoder: al5d@a0220000 {
-					compatible = "al,al5d-1.2", "al,al5d";
-					interrupt-parent = <&gic>;
-					interrupts = <0 105 4>;
-					reg = <0x0 0xa0220000 0x0 0x10000>;
-				};
 			};
 
+			mipi_cam_0_fb: v_frmbuf_wr@a0020000 {
+				compatible = "xlnx,v-frmbuf-wr-2.1", "xlnx,axi-frmbuf-wr-v2.1";
+				#dma-cells = <1>;
+				clock-names = "ap_clk";
+				clocks = <&misc_clk_6>;
+				interrupt-names = "interrupt";
+				interrupt-parent = <&gic>;
+				interrupts = <0 93 4>;
+				reg = <0x0 0xa0020000 0x0 0x10000>;
+				reset-gpios = <&gpio 102 GPIO_ACTIVE_LOW>; 
+				xlnx,dma-addr-width = <32>;
+				xlnx,dma-align = <16>;
+				xlnx,max-height = <2160>;
+				xlnx,max-width = <3840>;
+				xlnx,pixels-per-clock = <2>;
+				xlnx,s-axi-ctrl-addr-width = <0x7>;
+				xlnx,s-axi-ctrl-data-width = <0x20>;
+				xlnx,vid-formats = "bgr888", "xbgr8888", "xrgb8888", "uyvy", "y8", "vuy888", "xvuy8888", "yuyv", "nv12", "nv16";
+				xlnx,video-width = <8>;
+			};
+
+			mipi_cam_0_vcap: vcap_mipi0 {
+				compatible = "xlnx,video";
+				dmas = <&mipi_cam_0_fb 0>;
+				dma-names = "port0";
+				xlnx,vid-formats = "bgr888", "xbgr8888", "xrgb8888", "uyvy", "y8", "vuy888", "xvuy8888", "yuyv", "nv12", "nv16";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						direction = "input";
+
+						mipi_cam_0_vcap_in: endpoint {
+							remote-endpoint = <&mipi_cam_0_demosaic_out>;
+						};
+					};
+				};
+			};
+						
+	
 			/* GPS IIC */
 			sens_gps_axi_iic: i2c@a000d000 {
 				#address-cells = <1>;
@@ -249,10 +401,12 @@
 				reg = <0x0 0xA0400000 0x0 0x200000>;
 				interrupt-parent = <&gic>;
 				interrupts = <0 111 4>; /* pl_ps_irq1[7] */
-				dma-coherent; /* Using HPC port */
 				nvmem-cells = <&dyplolicense>;
 				nvmem-cell-names = "license";
 			};
+
+
 		};
 	};
 };
+
